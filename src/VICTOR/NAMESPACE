@@ -1,0 +1,6 @@
+export(plate.image,
+       simple.heatmap,
+       norm.plate,
+       plot.dc,
+       read.multi.victor,
+       read.victor)
