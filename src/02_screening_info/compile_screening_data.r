@@ -1,3 +1,4 @@
+library(dplyr)
 library(open.xlsx)
 library(VICTOR)
 
@@ -18,6 +19,18 @@ table(table(names(plates$r))) ## everything is unique, 738 plates
 layout <- read.csv("layout.csv",stringsAsFactors=F);layout <- layout[layout$a!="x",]
 anno <- read.csv("annotation.csv",stringsAsFactors=F);anno <- anno[anno$a!="x"&anno$a!="b",]
 
+##
+table(c("15051KS045","15051KS048","03061KS041","03061KS045","03061KS047") %in% anno$barcode)
+prefix.bc <- unique(sub("KS.+","",anno$bar))
+names(prefix.bc) <- as.numeric(sub("MS3840","",unique(anno$mother)))
+
+table(sub("KS.+","",names(plates$r))[!names(plates$r) %in% anno$barcode])
+
+pres <- lapply(prefix.bc,function(pre){
+  table((anno %>% filter(grepl(pre,barcode) & cell == "HT1080"))[2:3])  
+}) 
+
+## first mother plate - screwed treatment conditions
 
 ##########################################################################################
 ##    bg subtracted raws
