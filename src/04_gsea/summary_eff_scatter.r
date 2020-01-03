@@ -17,8 +17,8 @@ slp.thres <- 3
 ## DMSO.pos
 sig.1 <- apply(slp.dmso[dmso.pos,],1,function(x){
 	idx <- which(!is.na(x))
-	i.sig <- which(x[idx] > slp.thres)
-	return(max(i.sig))
+	i.sig <- which.max(x[idx])
+	return(idx[i.sig])
 })
 names(sig.1) <- dmso.pos
 
@@ -52,18 +52,18 @@ ois1 <- sapply(dicts.dmso.pos,function(x){
 rownames(ois1) <- colnames(ois1) <- dmso.pos
 
 ## ATOC.pos
-sig2 <- apply(slp.atoc[atoc.pos,],1,function(x){
+sig.2 <- apply(slp.atoc[atoc.pos,],1,function(x){
 	idx <- which(!is.na(x))
-	i.sig <- which(x[idx] > slp.thres)
-	return(max(i.sig))
+	i.sig <- which.max(x[idx])
+	return(idx[i.sig])
 })
-names(sig2) <- atoc.pos
+names(sig.2) <- atoc.pos
 
 a.eff <- eff$atoc
 names(a.eff) <- cmpds
 
 dicts.atoc.pos <- lapply(atoc.pos,function(n){
-	this.i <- sig2[n]
+	this.i <- sig.2[n]
 	a.all <- unique(unlist(dicts[[this.i]]))
 	sorted.a.all <- names(sort(a.eff[a.all],decreasing=T))
 	this.d <- dicts[[this.i]][[n]]
@@ -98,12 +98,12 @@ cols <- colorRampPalette(brewer.pal(9,"Blues"))(11)
 ##
 setwd(plot_dir);setwd("tea")
 pdf("dmso_pos.pdf",width=5,height=5) 
-heatmap.2(ois1,trace="none",margins=c(12,12),cexRow=.4,cexCol=.4,
+heatmap.2(ois1,trace="none",margins=c(12,12),cexRow=1,cexCol=1,
 	col=cols,RowSideColors=sc1,ColSideColors=sc1,main="essential & selective")
 dev.off()
 
 pdf("atoc_pos.pdf",width=5,height=5) 
-heatmap.2(ois2,trace="none",margins=c(12,12),cexRow=.4,cexCol=.4,
+heatmap.2(ois2,trace="none",margins=c(12,12),cexRow=1,cexCol=1,
 	col=cols,RowSideColors=sc2,ColSideColors=sc2,main="essential & selective")
 dev.off()
 
@@ -118,24 +118,16 @@ axis(1,at=c(1,7.5,14),labels=c(0,14,28))
 dev.off()
 
 ##
-setwd(rda_dir)
-save(dicts.dmso.pos,dicts.atoc.pos,file="dicts_sig-tgts_le.rda")
-
-dmso.pos.pro <- list(d1=c("ADA2A","ADA2B","ADA2C"),
-	d2=c("AK1C3","STS","DHB1", "ESR1"),
-	d3="NR1H3",
-	d4="CP51A")
-atoc.pos.pro <- list(a1="ALDH2",a2="C11B1",a3="CP51A",a4="PGTB1")
-
-dmso.pos.grp <- lapply(dmso.pos.pro,function(x)unique(unlist(dicts.dmso.pos[x])))
-atoc.pos.grp <- lapply(atoc.pos.pro,function(x)unique(unlist(dicts.atoc.pos[x])))
-
+if(0){
+	setwd(rda_dir)
+	save(dicts.dmso.pos,dicts.atoc.pos,file="dicts_sig-tgts_le.rda")
+}else{
+	setwd(rda_dir)
+	load(file="dicts_sig-tgts_le.rda") # dicts.dmso.pos,dicts.atoc.pos,
+}
 
 setwd(rda_dir)
-load(file="dicts_sig_tgts.rda") # dicts.dmso.pos,dicts.atoc.pos,
 dicts <- readRDS("dicts_MS-ecfp.rds")[-1]
-
-setwd(rda_dir)
 eff <- readRDS(file="MS-eff.rds")
 cmpds <- sub("X","",rownames(eff))
 
@@ -144,44 +136,74 @@ dmso.pos.pro <- list(d1=c("ADA2A","ADA2B","ADA2C"),
 	d2=c("AK1C3","STS","DHB1", "ESR1"),
 	d3="NR1H3",
 	d4="CP51A")
-atoc.pos.pro <- list(a1="ALDH2",a2="C11B1",a3="CP51A",a4="PGTB1")
+atoc.pos.pro <- list(a1="ALDH2",a2=c("C11B1","CP51A","PGTB1"))
 
-dmso.pos.grp <- lapply(dmso.pos.pro,function(x)unique(unlist(dicts.dmso.pos[x])))
-atoc.pos.grp <- lapply(atoc.pos.pro,function(x)unique(unlist(dicts.atoc.pos[x])))
+dmso.pos.grp <- lapply(dmso.pos.pro,function(x)table(unlist(dicts.dmso.pos[x])))
+atoc.pos.grp <- lapply(atoc.pos.pro,function(x)table(unlist(dicts.atoc.pos[x])))
 
-##
-dc <- densCols(eff)
-
-dicts.cmpds.all <- unique(unlist(dicts))
-dc[!cmpds %in% dicts.cmpds.all] <- "grey80"
+dmso.titles <- c("ADA2A/B/C","AK1C3/STS/DHB1/ESR1","NR1H3","CP51A")
+atoc.titles <- c("ALDH2","C11B1/CP51A/PGTB1")
 
 ## DMSO.pos
 setwd(plot_dir);setwd("eff_sig_cmpds")
 for(i in 1:4){
-	idx <- cmpds %in% dmso.pos.grp[[i]]
+	idx <- cmpds %in% names(dmso.pos.grp[[i]])
+	cmpd.i <- dmso.pos.grp[[i]][cmpds[idx]]
+	cols <- colorRampPalette(c("white","red"))(max(cmpd.i)+1)[-1]
+
 	pdf(paste0("CIL56_screening_dmso_",i,".pdf"),width=5,height=5)
 	par(mar=c(4,4,2,2))
+
+	dc <- densCols(eff)
+	dicts.cmpds.all <- unique(unlist(dicts))
+	dc[!cmpds %in% dicts.cmpds.all] <- "grey80"
+
 	plot(eff,pch=20,col=dc,asp=1,
 		xlab="dAUC (in DMSO)",ylab="dAUC (in ATOC)",
-		main="Summary of CIL56-enhancer/suppressor screening")
+		main=dmso.titles[i])
 	abline(h=0,v=0)
 	abline(a=0,b=1,lty=2)
 	points(eff$d[dc=="grey80"],eff$a[dc=="grey80"],pch=20,col="grey80")
 	points(eff$d[dc!="grey80" & !idx],eff$a[dc!="grey80" & !idx],pch=20,
 		col=dc[dc!="grey80" & !idx])
-	points(eff$d[idx],eff$a[idx],pch=20,col=2)
+	points(eff$d[idx],eff$a[idx],pch=20,col=cols[cmpd.i])
 	dev.off()
 }
 
 ## ATOC.pos
 setwd(plot_dir);setwd("eff_sig_cmpds")
-for(i in 1:4){
+for(i in 1:2){
+	idx <- cmpds %in% names(atoc.pos.grp[[i]])
+	cmpd.i <- atoc.pos.grp[[i]][cmpds[idx]]
+	cols <- colorRampPalette(c("white","red"))(max(cmpd.i)+1)[-1]
+
+	pdf(paste0("CIL56_screening_atoc_",i,".pdf"),width=5,height=5)
+	par(mar=c(4,4,2,2))
+
+	dc <- densCols(eff)
+	dicts.cmpds.all <- unique(unlist(dicts))
+	dc[!cmpds %in% dicts.cmpds.all] <- "grey80"
+
+	plot(eff,pch=20,col=dc,asp=1,
+		xlab="dAUC (in DMSO)",ylab="dAUC (in ATOC)",
+		main=atoc.titles[i])
+	abline(h=0,v=0)
+	abline(a=0,b=1,lty=2)
+	points(eff$d[dc=="grey80"],eff$a[dc=="grey80"],pch=20,col="grey80")
+	points(eff$d[dc!="grey80" & !idx],eff$a[dc!="grey80" & !idx],pch=20,
+		col=dc[dc!="grey80" & !idx])
+	points(eff$d[idx],eff$a[idx],pch=20,col=cols[cmpd.i])
+	dev.off()
+}
+
+setwd(plot_dir);setwd("eff_sig_cmpds")
+for(i in 1:2){
 	idx <- cmpds %in% atoc.pos.grp[[i]]
 	pdf(paste0("CIL56_screening_atoc_",i,".pdf"),width=5,height=5)
 	par(mar=c(4,4,2,2))
 	plot(eff,pch=20,col=dc,asp=1,
 		xlab="dAUC (in DMSO)",ylab="dAUC (in ATOC)",
-		main="Summary of CIL56-enhancer/suppressor screening")
+		main=atoc.titles[i])
 	abline(h=0,v=0)
 	abline(a=0,b=1,lty=2)
 	points(eff$d[dc=="grey80"],eff$a[dc=="grey80"],pch=20,col="grey80")
